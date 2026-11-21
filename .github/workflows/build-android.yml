@@ -1,0 +1,45 @@
+name: Build MediCare Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: npm install
+      - name: Bundle native notification bridge
+        run: npm run build
+      - name: Add Android platform
+        run: npx cap add android
+      - name: Patch AndroidManifest permissions
+        run: node scripts/patch-android-manifest.mjs
+      - name: Sync web assets and plugins
+        run: npx cap sync android
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Upload MediCare APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediCare-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
